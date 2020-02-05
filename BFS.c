@@ -29,6 +29,7 @@ awk '{if ($1<$2) print $1" "$2;else if ($2<$1) print $2" "$1}' net.txt | sort -n
 
 #define NLINKS 100000000 //maximum number of edges for memory allocation, will increase if needed
 #define BUFFSIZELINE 100
+#define NBITER 3
 
 typedef struct {
 	unsigned long * t;
@@ -62,30 +63,30 @@ adjarray* readadjarray(char* input){
 	unsigned long e1=NLINKS;
 	FILE *file=fopen(input,"r");
 	//ajout
-	char buffer[BUFFSIZELINE]; 
+	char buffer[BUFFSIZELINE];
 
-	adjarray*g=malloc(sizeof(adjarray));
+	adjarray*g=(adjarray*)malloc(sizeof(adjarray));
 	g->n=0;
 	g->e=0;
-	g->edges=malloc(e1*sizeof(edge));//allocate some RAM to store edges
-	
+	g->edges=(edge*)malloc(e1*sizeof(edge));//allocate some RAM to store edges
+
 	//ajout
 	fgets(buffer, BUFFSIZELINE, file);
 	fgets(buffer, BUFFSIZELINE, file);
 	fgets(buffer, BUFFSIZELINE, file);
 	fgets(buffer, BUFFSIZELINE, file);
-	
+
 	while (fscanf(file,"%lu %lu", &(g->edges[g->e].s), &(g->edges[g->e].t))==2) {
 		g->n=max3(g->n,g->edges[g->e].s,g->edges[g->e].t);
 		if (++(g->e)==e1) {//increase allocated RAM if needed
 			e1+=NLINKS;
-			g->edges=realloc(g->edges,e1*sizeof(edge));
+			g->edges=(edge*)realloc(g->edges,e1*sizeof(edge));
 		}
 	}
 	fclose(file);
 	g->n++;
 
-	g->edges=realloc(g->edges,g->e*sizeof(edge));
+	g->edges=(edge*)realloc(g->edges,g->e*sizeof(edge));
 
 	return g;
 }
@@ -94,21 +95,21 @@ adjarray* readadjarray(char* input){
 //building the adjacency matrix
 void mkadjarray(adjarray* g){
 	unsigned long i,u,v;
-	unsigned long *d=calloc(g->n,sizeof(unsigned long));
+	unsigned long *d=(unsigned long *)calloc(g->n,sizeof(unsigned long));
 
 	for (i=0;i<g->e;i++) {
 		d[g->edges[i].s]++;
 		d[g->edges[i].t]++;
 	}
 
-	g->cd=malloc((g->n+1)*sizeof(unsigned long));
+	g->cd=(unsigned long *)malloc((g->n+1)*sizeof(unsigned long));
 	g->cd[0]=0;
 	for (i=1;i<g->n+1;i++) {
 		g->cd[i]=g->cd[i-1]+d[i-1];
 		d[i-1]=0;
 	}
 
-	g->adj=malloc(2*g->e*sizeof(unsigned long));
+	g->adj=(unsigned long *)malloc(2*g->e*sizeof(unsigned long));
 
 	for (i=0;i<g->e;i++) {
 		u=g->edges[i].s;
@@ -154,22 +155,42 @@ unsigned long pop (fifo*f ){
 		printf("Error : pop on empty FIFO \n ");
 		exit(0);
 	}
-	
+
 	unsigned long res= *(f->debut);
 	(f->debut)++;
 	(f->size)--;
 	return res;
 }
+typedef struct pathS{
+	unsigned long * path;
+	size_t size;
+}pathS;
+
+pathS * makePath(){
+	pathS * p=(pathS*)malloc(sizeof(pathS));
+	p->path=(unsigned long *)malloc(sizeof(unsigned long));
+	p->size=0;
+	return p;
+}
+void addPath(pathS *p,unsigned long value){
+	(p->path)[p->size]=value;
+	(p->size)++;
+}
+void free_path(pathS *p){
+	free(p->path);
+	free(p);
+}
+
 
 
 void BFS(adjarray*g,unsigned long s){
-	printf("Start of BFS...\n ");	
+	printf("Start of BFS...\n ");
 	fifo* f= makefifo(g);
 	unsigned long *marked= (unsigned long*) calloc(g->n,sizeof(unsigned long));
 	add(f,s);
 	marked[s]=1;
 	printf(" initial : f->size = %lu \n",f->size);
-	
+
 	unsigned long u;
 	unsigned long d;
 	unsigned long i;
@@ -188,31 +209,96 @@ void BFS(adjarray*g,unsigned long s){
 			}
 		}
 	}
-	
+
 	free(marked);
-	printf("free (marked) passed !\n");
+	//printf("free (marked) passed !\n");
 	free_fifo(f);
-	printf("free_fifo passed !\n");
-	
+	//printf("free_fifo passed !\n");
+
 	printf("nombre de noeuds traversés: %i \n",nbnodes);
-	printf("End of BFS !\n ");			
-	
+	printf("End of BFS !\n ");
+
 }
-/*
-unsigned long diameter(adjarray*g,int iterations){
-	int i;
-	srand(time(NULL)); 
-	int r = rand();      
-	for(i=0;i<iterations;i++){
-		
-		BFS(g,)
+unsigned long sizetab(unsigned long* tab){
+	return (sizeof(tab) / sizeof(*tab));
+}
+pathS *BFS_arr(adjarray*g,unsigned long s){
+	printf("Start of BFS...\n");
+	fifo* f= makefifo(g);
+	unsigned long *marked= (unsigned long*) calloc(g->n,sizeof(unsigned long));
+	add(f,s);
+	marked[s]=1;
+	//printf(" initial : f->size = %lu \n",f->size);
+
+	unsigned long u;
+	unsigned long d;
+	unsigned long i;
+	unsigned long v;
+	/*path[sizepath-1]=taille du tableau*/
+	pathS *p=makePath();
+	int nbnodes=0;
+
+	while(f->size >0){
+		u=pop(f);
+		//printf("f->size = %lu \n",f->size);
+		//printf("u= %lu \n",u);
+		addPath(p,u);
+		//(p->path)[nbnodes]=u;
+		//printf("path[%d]= %lu \n",nbnodes,path[nbnodes]);
+		//nbnodes++;
+		for(i=(g->cd)[u];i<(g->cd)[u+1];i++){
+			v=(g->adj)[i];
+			if(marked[v]!=1){
+				add(f,v);
+				marked[v]=1;
+			}
+		}
 	}
+	free(marked);
+	//printf("free (marked) passed !\n");
+	free_fifo(f);
+	//printf("free_fifo passed !\n");
+
+	//printf("nombre de noeuds traversés: %i \n",nbnodes);
+	//printf("End of BFS !\n ");
+	return p;
 }
-*/
+int diameter(adjarray*g,int iterations){
+	printf("Start of diameter...\n");
+	pathS * p;
+	int i=0;
+	//srand(time(NULL));
+	//int r = rand()%(g->e);
+	//unsigned long randNode=((g->edges)[r]).s;
+	int max=0;
+	size_t tmp;
+
+
+	p=BFS_arr(g,1);
+	tmp=(p->size);
+	printf("size de path= %d\n",tmp);
+	for(i=0;i<iterations-1;i++){
+		//printf("J'entre dans la boucle\n");
+		//if(i==0) path=BFS_arr(g,randNode);
+		//printf("Dernier noeud: %lu\n",(p->path)[tmp-1]);
+		p=BFS_arr(g,(p->path)[tmp-1]);
+		tmp=(p->size);
+		if(tmp>max) max=tmp;
+	}
+	printf("before free path\n");
+	free_path(p);
+	printf("after free path\n");
+	printf("End of diameter!\n");
+	return max;
+
+
+}
+
 
 int main(int argc,char** argv){
 	adjarray* g;
 	time_t t1,t2;
+	int d;
 
 	t1=time(NULL);
 
@@ -223,19 +309,17 @@ int main(int argc,char** argv){
 	printf("Number of edges: %lu\n",g->e);
 
 	printf("Building the adjacency array\n");
-	
+
 	mkadjarray(g);
-	BFS(g,0);
+	//BFS(g,0);
+	d= diameter(g,NBITER);
+	printf("diameter = %d\n",d);
 	free_adjarray(g);
 
 	t2=time(NULL);
 
 	printf("- Overall time = %ldh%ldm%lds\n",(t2-t1)/3600,((t2-t1)%3600)/60,((t2-t1)%60));
-	
-	
+
+
 	return 0;
 }
-
-
-
-
