@@ -302,7 +302,7 @@ int main(int argc,char** argv){
 
 	t1=time(NULL);
 
-	printf("Reading edgelist from file %s\n",argv[1]);
+	printf("Reading adjArray from file %s\n",argv[1]);
 	g=readadjarray(argv[1]);
 
 	printf("Number of nodes: %lu\n",g->n);
