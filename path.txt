@@ -1,7 +1,0 @@
-/Vrac/DatasetAdel/email-EU-core.txt/data
-/Vrac/DatasetAdel/com-amazon.ungraph.txt/data
-/Vrac/DatasetAdel/com-lj.ungraph.txt/data
-Vrac/DatasetAdel/com-orkut.ungraph.txt/data
-
-
-
